@@ -6,5 +6,4 @@ import android.widget.TextView;
 public class MyViewHolder {
     TextView name,title,content,time;
     ImageView avatar,favorite;
-    int isFavorite,isCheck=0;
 }

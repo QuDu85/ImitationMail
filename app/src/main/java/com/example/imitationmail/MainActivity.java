@@ -3,34 +3,42 @@ package com.example.imitationmail;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Activity;
+import android.app.LauncherActivity;
 import android.app.ListActivity;
 import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import java.util.List;
+
 public class MainActivity extends ListActivity {
 
+    TextView debug;
     //fake data
-    String [] names = {"Eduria.com","Chris Abad","Tuto.com","support","Matt from Ionic","Udemy Instructor",
+    public static String [] names = {"Eduria.com","Chris Abad","Tuto.com","support","Matt from Ionic","Udemy Instructor",
     "GitHub","Google","Entopy","Dabia","Jesus","Gawr Gura"};
-    String [] titles = {"$19 Only(First 10 spots) - Bestselling...","Help make Campaign Monitor better",
+    public static String [] titles = {"$19 Only(First 10 spots) - Bestselling...","Help make Campaign Monitor better",
             "8h de formation gratuite et les nouvea...","Societe Ovh: suivi de vos services - hp...","New " +
             "Ionic Creator Is Here!","Early Bird Discount on new ML course: 48...",
             "Discover what’s new at GitHub","Security Alert!","Idk Man These titles are hard","Rlly Running outta ideas here",
              "My Bible!","a"};
-    String [] times = {"1:00 am","0:00 pm","11:11 am","6:13 am","12:30 pm", "9:52 am", "6:10 am","4:50 pm","12:00 pm","7:00 pm","9:20 am","3:10 pm"};
-    String [] contents = {"Are you looking to Learn Web Designin...","Let us know your thoughts! No Images...",
+    public static String [] times = {"1:00 am","0:00 pm","11:11 am","6:13 am","12:30 pm", "9:52 am", "6:10 am","4:50 pm","12:00 pm","7:00 pm","9:20 am","3:10 pm"};
+    public static String [] contents = {"Are you looking to Learn Web Designin...","Let us know your thoughts! No Images...",
     "Photoshop, SEO, Blender, CSS, WordPre...","SAS OVH - http://www.ovh 2 rue K...","Announcing the all-new Creator, build...",
     "There is only 4...","We’re constantly learning, buil...","academia.edu has been granted access...","Smth Smth smth smth",
     "bla bla bla bla bleh","Im sory if this is offensive...","Im drunk but singer :3..."};
 
-    Integer [] avatar = {R.drawable.e,R.drawable.c,R.drawable.t,R.drawable.s,R.drawable.m,R.drawable.u,
+    List database = new DATABASE().dbList;
+
+    public static Integer [] avatar = {R.drawable.e,R.drawable.c,R.drawable.t,R.drawable.s,R.drawable.m,R.drawable.u,
     R.drawable.g,R.drawable.g2,R.drawable.e,R.drawable.d,R.drawable.j,R.drawable.g};
 
     @Override
@@ -38,36 +46,56 @@ public class MainActivity extends ListActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        CustomIconLabelAdapter adapter = new CustomIconLabelAdapter(this,
-                R.layout.custom_row_icon_label,
-                names, titles, contents, times,avatar);
+        debug = (TextView) findViewById(R.id.debug);
+
+
+        CustomBaseAdapter adapter = new CustomBaseAdapter(this,database,
+                R.layout.custom_row_icon_label);
+//        CustomIconLabelAdapter adapter = new CustomIconLabelAdapter(this,
+//                R.layout.custom_row_icon_label,
+//                names, titles, contents, times,avatar);
 // bind intrinsic ListView to custom adapter
         setListAdapter(adapter);
     }
-}
-
-class CustomIconLabelAdapter extends ArrayAdapter<String> {
-    Context context;
-    Integer[] avatar;
-    String[] names;
-    String[] titles;
-    String[] contents;
-    String [] times;
-    public CustomIconLabelAdapter( Context context, int layoutToBeInflated,
-                                   String[] names, String[] titles, String[] contents, String [] times,
-                                   Integer[] avatar) {
-        super(context, R.layout.custom_row_icon_label, names);
-        this.context = context;
-        this.avatar = avatar;
-        this.names = names;
-        this.titles = titles;
-        this.contents=contents;
-        this.times = times;
-    }
-
 
     @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
+    protected void onListItemClick(ListView l, View v, int position, long id) {
+        super.onListItemClick(l, v, position, id);
+        String text = " Position: " + position;
+        debug.setText(text);
+    }
+
+}
+
+class CustomBaseAdapter extends BaseAdapter {
+    Context context;
+    int layoutToBeInflated;
+    List<DATABASE.DbRecord> dbList;
+
+    public CustomBaseAdapter(Context context, List<DATABASE.DbRecord>
+            databaseList, int resource) {
+        this.context = context;
+        this.dbList = databaseList;
+        layoutToBeInflated = resource;
+    }
+
+    @Override
+    public int getCount() {
+        return dbList.size();
+    }
+
+    @Override
+    public DATABASE.DbRecord getItem(int position) {
+        return dbList.get(position);
+    }
+
+    @Override
+    public long getItemId(int position) {
+        return position;
+    }
+
+    @Override
+    public View getView(final int position, View convertView, ViewGroup parent) {
         MyViewHolder holder;
         View row = convertView;
         if(row==null){
@@ -88,42 +116,61 @@ class CustomIconLabelAdapter extends ArrayAdapter<String> {
         }else
             holder = (MyViewHolder) row.getTag();
 
-
-        holder.title.setText(titles[position]);
-        holder.content.setText(contents[position]);
-        holder.name.setText(names[position]);
-        if(holder.isCheck==0)
-            holder.avatar.setImageResource(avatar[position]);
-        holder.time.setText(times[position]);
+        DATABASE.DbRecord dbRec = getItem(position);
+        holder.title.setText(dbRec.title);
+        holder.content.setText(dbRec.content);
+        holder.name.setText(dbRec.name);
+        holder.time.setText(dbRec.time);
 
         holder.avatar.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(holder.isCheck==0){
-                    holder.avatar.setImageResource(R.drawable.check);
-                    holder.isCheck=1;
-                }else{
-                    holder.avatar.setImageResource(avatar[position]);
-                    holder.isCheck=0;
+                if(dbRec.previousView!=null){
+                    DATABASE.DbRecord previousItem =getItem(dbRec.previousPosition);
+                    previousItem.clicked1 = false;
                 }
+                dbRec.check=!dbRec.check;
+                dbRec.clicked1 = true;
+                dbRec.previousView = v;
+                dbRec.previousPosition = position;
+                notifyDataSetChanged();
             }
-        });
+            });
 
         holder.favorite.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(holder.isFavorite==0){
-                    holder.favorite.setImageResource(android.R.drawable.btn_star_big_on);
-                    holder.isFavorite=1;
-                }else{
-                    holder.favorite.setImageResource(android.R.drawable.btn_star_big_off);
-                    holder.isFavorite=0;
+                if(dbRec.previousView!=null){
+                    DATABASE.DbRecord previousItem =getItem(dbRec.previousPosition);
+                    previousItem.clicked2 = false;
                 }
-
+                dbRec.favor=!dbRec.favor;
+                dbRec.clicked2 = true;
+                dbRec.previousView = v;
+                dbRec.previousPosition = position;
+                notifyDataSetChanged();
             }
         });
 
-        return (row);
+        if(!dbRec.clicked1){
+            holder.avatar.setImageResource(dbRec.avatar);
+        }else{
+            if(!dbRec.check)
+                holder.avatar.setImageResource(R.drawable.check);
+            else
+                holder.avatar.setImageResource(dbRec.avatar);
+        }
+        if(!dbRec.clicked2)
+            holder.favorite.setImageResource(dbRec.favorite);
+        else{
+            if(!dbRec.favor)
+                holder.favorite.setImageResource(android.R.drawable.btn_star_big_on);
+            else
+                holder.favorite.setImageResource(dbRec.favorite);
+        }
+        return row;
     }
 }
+
+
 
