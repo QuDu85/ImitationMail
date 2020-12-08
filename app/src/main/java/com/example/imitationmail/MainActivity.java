@@ -1,13 +1,20 @@
 package com.example.imitationmail;
 
+import androidx.annotation.MainThread;
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.view.menu.MenuView;
+
 
 import android.app.Activity;
-import android.app.LauncherActivity;
-import android.app.ListActivity;
+import android.content.ClipData;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -15,62 +22,140 @@ import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.PopupMenu;
+import android.widget.SearchView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.List;
-
-public class MainActivity extends ListActivity {
-
-    TextView debug;
-    //fake data
-    public static String [] names = {"Eduria.com","Chris Abad","Tuto.com","support","Matt from Ionic","Udemy Instructor",
-    "GitHub","Google","Entopy","Dabia","Jesus","Gawr Gura"};
-    public static String [] titles = {"$19 Only(First 10 spots) - Bestselling...","Help make Campaign Monitor better",
-            "8h de formation gratuite et les nouvea...","Societe Ovh: suivi de vos services - hp...","New " +
-            "Ionic Creator Is Here!","Early Bird Discount on new ML course: 48...",
-            "Discover what’s new at GitHub","Security Alert!","Idk Man These titles are hard","Rlly Running outta ideas here",
-             "My Bible!","a"};
-    public static String [] times = {"1:00 am","0:00 pm","11:11 am","6:13 am","12:30 pm", "9:52 am", "6:10 am","4:50 pm","12:00 pm","7:00 pm","9:20 am","3:10 pm"};
-    public static String [] contents = {"Are you looking to Learn Web Designin...","Let us know your thoughts! No Images...",
-    "Photoshop, SEO, Blender, CSS, WordPre...","SAS OVH - http://www.ovh 2 rue K...","Announcing the all-new Creator, build...",
-    "There is only 4...","We’re constantly learning, buil...","academia.edu has been granted access...","Smth Smth smth smth",
-    "bla bla bla bla bleh","Im sory if this is offensive...","Im drunk but singer :3..."};
+public class MainActivity extends AppCompatActivity {
 
     List database = new DATABASE().dbList;
+    List favorite = new ArrayList<DATABASE.DbRecord>();
+    List search = new ArrayList<DATABASE.DbRecord>();
+    CustomBaseAdapter adapter;
+    CustomBaseAdapter Mainadapter = new CustomBaseAdapter(this,database,
+                R.layout.custom_row_icon_label);
+    String searchTarget;
+    boolean favoriteOnly=false;
 
-    public static Integer [] avatar = {R.drawable.e,R.drawable.c,R.drawable.t,R.drawable.s,R.drawable.m,R.drawable.u,
-    R.drawable.g,R.drawable.g2,R.drawable.e,R.drawable.d,R.drawable.j,R.drawable.g};
+    public Context getContext(){
+        return this;
+    }
+
+    public void setCurrentAdapter(CustomBaseAdapter adapter){
+        ListView listView = findViewById(R.id.list_view);
+        listView.setAdapter(adapter);
+        registerForContextMenu(listView);
+        listView.setLongClickable(true);
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        ActionBar actionBar = getSupportActionBar();
+        actionBar.setTitle("Inbox");
+        actionBar.setDisplayShowCustomEnabled(true);
 
-        debug = (TextView) findViewById(R.id.debug);
-
-
-        CustomBaseAdapter adapter = new CustomBaseAdapter(this,database,
-                R.layout.custom_row_icon_label);
-//        CustomIconLabelAdapter adapter = new CustomIconLabelAdapter(this,
-//                R.layout.custom_row_icon_label,
-//                names, titles, contents, times,avatar);
-// bind intrinsic ListView to custom adapter
-        setListAdapter(adapter);
+        setCurrentAdapter(Mainadapter);
     }
 
     @Override
-    protected void onListItemClick(ListView l, View v, int position, long id) {
-        super.onListItemClick(l, v, position, id);
-        String text = " Position: " + position;
-        debug.setText(text);
+    public boolean onCreateOptionsMenu(Menu menu){
+        getMenuInflater().inflate(R.menu.menu_bar,menu);
+
+        SearchView searchView = (SearchView) menu.findItem(R.id.search).getActionView();
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                Log.v("TAG", "Search with keyword: " + query);
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                search.clear();
+                searchTarget=newText.toUpperCase();
+                for(int i=0; i< database.size(); i++){
+                    if(((DATABASE.DbRecord) database.get(i)).name.toUpperCase().contains(searchTarget)
+                            || ((DATABASE.DbRecord) database.get(i)).title.toUpperCase().contains(searchTarget))
+                        search.add(database.get(i));
+                }
+                CustomBaseAdapter search_adapter = new CustomBaseAdapter(getContext(),search,
+                        R.layout.custom_row_icon_label);
+                setCurrentAdapter(search_adapter);
+                Log.v("TAG", "Keyword: " + newText);
+                return false;
+            }
+        });
+
+        return super.onCreateOptionsMenu(menu);
     }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item){
+        if(item.getItemId()==R.id.show_favorite){
+            favorite.clear();
+            for(int i=0; i< database.size(); i++){
+                if(!((DATABASE.DbRecord) database.get(i)).favor)
+                    favorite.add((DATABASE.DbRecord) database.get(i));
+            }
+            CustomBaseAdapter favorite_adapter = new CustomBaseAdapter(this,favorite,
+                    R.layout.custom_row_icon_label);
+            favoriteOnly=!favoriteOnly;
+            if(favoriteOnly){
+                setCurrentAdapter(favorite_adapter);
+                item.setTitle("Show all");
+            }
+            else{
+                setCurrentAdapter(Mainadapter);
+                item.setTitle("Show favorite");
+            }
+            return true;
+        }
+        return false;
+    }
 }
 
 class CustomBaseAdapter extends BaseAdapter {
     Context context;
     int layoutToBeInflated;
     List<DATABASE.DbRecord> dbList;
+
+    public void popUpContext(TextView t, DATABASE.DbRecord currentData, CustomBaseAdapter adapter){
+        t.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                PopupMenu popupMenu = new PopupMenu(context, v);
+                popupMenu.getMenuInflater().inflate(R.menu.context_menu, popupMenu.getMenu());
+                popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+                    @Override
+                    public boolean onMenuItemClick(MenuItem menuItem) {
+                        int id = menuItem.getItemId();
+                        if (id == R.id.reply) {
+                            Log.v("TAG", "Reply action");
+                            String[] emailReceiverList = {currentData.name};
+                            Intent intent = new Intent(Intent.ACTION_SEND);
+                            intent.setType("vnd.android.cursor.dir/email");
+                            intent.putExtra(Intent.EXTRA_EMAIL, emailReceiverList);
+                            context.startActivity(Intent.createChooser(intent,
+                                    "To complete action choose:"));
+
+                        } else if (id == R.id.delete) {
+                            Log.v("TAG", "Delete action");
+                            adapter.dbList.remove(currentData);
+                            notifyDataSetChanged();
+                        }
+                        return false;
+                    }
+                });
+                popupMenu.show();
+                return false;
+            }
+        });
+    };
 
     public CustomBaseAdapter(Context context, List<DATABASE.DbRecord>
             databaseList, int resource) {
@@ -99,7 +184,7 @@ class CustomBaseAdapter extends BaseAdapter {
         MyViewHolder holder;
         View row = convertView;
         if(row==null){
-            LayoutInflater inflater = ((Activity) context).getLayoutInflater();
+            LayoutInflater inflater = ((AppCompatActivity) context).getLayoutInflater();
             row = inflater.inflate(R.layout.custom_row_icon_label, null);
 
             holder = new MyViewHolder();
@@ -122,11 +207,16 @@ class CustomBaseAdapter extends BaseAdapter {
         holder.name.setText(dbRec.name);
         holder.time.setText(dbRec.time);
 
+        popUpContext(holder.title, dbRec, this);
+        popUpContext(holder.name, dbRec,this);
+        popUpContext(holder.content, dbRec,this);
+
         holder.avatar.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(dbRec.previousView!=null){
+                if(dbRec.previousView!=null && dbRec.previousPosition!=-1){
                     DATABASE.DbRecord previousItem =getItem(dbRec.previousPosition);
+                    Log.v("Pre pos: ", ""+dbRec.previousPosition);
                     previousItem.clicked1 = false;
                 }
                 dbRec.check=!dbRec.check;
@@ -140,7 +230,7 @@ class CustomBaseAdapter extends BaseAdapter {
         holder.favorite.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(dbRec.previousView!=null){
+                if(dbRec.previousView!=null && dbRec.previousPosition!=-1){
                     DATABASE.DbRecord previousItem =getItem(dbRec.previousPosition);
                     previousItem.clicked2 = false;
                 }
